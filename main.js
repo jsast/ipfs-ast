@@ -1,7 +1,8 @@
 import ipfsAPI from 'ipfs-api';
 import fs from 'fs';
 import esprima from 'esprima';
-import { pick } from 'ramda';
+import escodegen from 'escodegen';
+import { pick, sortBy, prop } from 'ramda';
 const ipfs = ipfsAPI('localhost', '5001', {protocol: 'http'});
 import async from 'async';
 
@@ -42,24 +43,105 @@ function storeLink({ name, node }) {
   })
 }
 
+function isArrayKey(key) {
+  return key.indexOf("[") > -1;
+}
+
+function parseArrayKey(key) {
+  const pos = key.indexOf("[");
+
+  return {
+    baseName: key.slice(0, pos),
+    index: Number.parseInt(key.slice(pos + 1, -1))
+  }
+}
+
+// To read arrays from the links (random order, `body[5]`, `body[2]`, ...),
+// first collect all links to a given array
+// ```
+// { body: [
+//   { index: 5, node: ...},
+//   { index: 2, node: ...},
+// ]}
+// ```
+// and then, after parsing all links,
+// sort them by `index` and keep only `node`
+function loadLink({ name, multihash }) {
+  return ipfs.object.get(multihash).then(node_ => {
+
+    const node = node_.toJSON();
+
+    // TODO: Errors in this promise are not passed to the outer promise
+    return Promise.all(
+      node.links.map(loadLink)
+    ).then(links => {
+      const data = JSON.parse(node.data);
+      const arrays = [];
+
+      links.forEach(({ name, node }) => {
+        if (isArrayKey(name)) {
+          const { baseName, index } = parseArrayKey(name);
+
+          if (data.hasOwnProperty(baseName)) {
+            data[baseName].push({ index, node });
+          } else {
+            data[baseName] = [{ index, node }];
+            arrays.push(baseName);
+          }
+        } else {
+          data[name] = node;
+        }
+      });
+
+      arrays.forEach(baseName => {
+        const old = data[baseName];
+        data[baseName] = sortBy(prop('index'), old).map(prop('node'))
+      })
+
+      // if (data.type == 'ReturnStatement') {
+        // data.argument = null;
+      // // } else if (data.type == 'BlockStatement') {
+        // data.handler = null;
+        // data.finalizer = null;
+        // data.init = null;
+        // data.id = null;
+      // // }
+
+      return { name, node: data };
+    // TODO: Errors in this promise are not passed to the outer promise
+    }).catch(err => {
+      throw err;
+    });
+  });
+}
+
+// NOTE: There are some special cases
+// where the values of the linkKeys
+// need to be stored in the node data,
+// e.g. if an array is empty
+// or a value is null
 function makeExporter(dataKeys, linkKeys) {
   return (node) => {
     const links = []
+    const data =  pick(['type', ...dataKeys], node);
 
     linkKeys.forEach(key => {
       const value = node[key]
       if (value instanceof Array) {
-        const newLinks = value.map((e, i) => ({ name: `${key}[${i}]`, node: e }));
-        links.push(...newLinks)
+        if (value.length == 0) {
+          data[key] = [];
+        } else {
+          const newLinks = value.map((e, i) => ({ name: `${key}[${i}]`, node: e }));
+          links.push(...newLinks);
+        }
       } else if (value != null) {
         links.push({ name: key, node: value })
+      } else {
+        data[key] = null;
       }
     })
 
-    return {
-      data: pick(['type', ...dataKeys], node),
-      links: links,
-    }
+    return { data, links }
   }
 }
 
@@ -136,7 +218,7 @@ const exporters = {
   'ExportDefaultDeclaration':   makeExporter([], ['declaration']),
   'ExportNamedDeclaration':   makeExporter([], ['declaration', 'specifiers', 'source']),
   'ExportSpecifier':   makeExporter([], ['exported', 'local']),
-  'ImportDeclaration':   makeExporter([], ['specifier', 'source']),
+  'ImportDeclaration':   makeExporter([], ['specifiers', 'source']),
 }
 
 // NOTE: This does not return valid DAGNodes!
@@ -165,10 +247,24 @@ function storeFile(filename) {
     storeLink({ name: 'root', node: program }).then(node => { 
       console.log("Nodes: " + nodes)
       console.log(node.Hash);
+      
+      // TODO: Just for debugging purposes,
+      // load the file back in
+      loadFile(node.Hash, 'output.js')
     }).catch(err => {
       throw err;
     })
   });
+}
+
+function loadFile(hash, filename) {
+  loadLink({ name: 'root', multihash: hash }).then(node => {
+
+    // console.log(JSON.stringify(node.node, null, 2))
+    console.log(escodegen.generate(node.node));
+  }).catch(err => {
+    throw err;
+  })
 }
 
 storeFile('input.js')
