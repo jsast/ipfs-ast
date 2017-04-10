@@ -8,37 +8,38 @@ import async from 'async';
 // NOTE: Links w/ different names but the same ref
 // appear only once in the webinterface
 
-// TODO: Refactor to use promises
-function storeNode(node, cb) {
+// To simplify the recursive calls to `storeLink`
+// this function always expects an AST-Link
+// `{ name: ..., node: ... }`
+// as input
+// and returns an IPFS-Link
+// `{ Name: ..., Size: ..., Hash: ... }`.
+//
+// To store the root AST-Node,
+// just pass in `{ name: 'root', node: node }`
+function storeLink({ name, node }) {
+  // Process the AST-Node
+  // to get its data and links (to other AST-Nodes)
   const { data, links } = processNode(node);
 
-  async.map(links, (link, callback) => {
-    const { name, item } = link;
-
-    storeNode(item, (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-
-      return callback(null, {
-        Name: name,
-        Size: res.size,
-        Hash: res.toJSON().multihash,
-      });
-    });
-  }, (err, link_nodes) => {
-    if (err) {
-      return cb(err);
-    }
-
-    ipfs.object.put({
+  return Promise.all(
+    // recursively call storeLink on all links,
+    links.map(storeLink)
+  ).then(ipfsLinks => {
+    // create an ipfs object
+    // w/ data and the IPFS-links from the previous step
+    return ipfs.object.put({
       Data: JSON.stringify(data),
-      Links: link_nodes
-    }, cb);
-  });
-}
-
-function processArray(key, array) {
+      Links: ipfsLinks
+    })
+  }).then(ipfsNode => {
+    // then return a valid DAGLink object
+    return {
+      Name: name,
+      Size: ipfsNode.size,
+      Hash: ipfsNode.toJSON().multihash,
+    };
+  })
 }
 
 function makeProcessor(dataKeys, linkKeys) {
@@ -48,10 +49,10 @@ function makeProcessor(dataKeys, linkKeys) {
     linkKeys.forEach(key => {
       const value = node[key]
       if (value instanceof Array) {
-        const newLinks = value.map((e, i) => ({ name: `${key}[${i}]`, item: e }));
+        const newLinks = value.map((e, i) => ({ name: `${key}[${i}]`, node: e }));
         links.push(...newLinks)
       } else if (value != null) {
-        links.push({ name: key, item: value })
+        links.push({ name: key, node: value })
       }
     })
 
@@ -161,14 +162,12 @@ function storeFile(filename) {
 
     let program = esprima.parse(data, { sourceType: 'module' });
 
-    storeNode(program, (err, node) => {
-      if (err) {
-        throw err;
-      }
+    storeLink({ name: 'root', node: program }).then(node => { 
       console.log("Nodes: " + nodes)
-      console.log(node.toJSON().multihash);
+      console.log(node.Hash);
+    }).catch(err => {
+      throw err;
     })
-
   });
 }
 
