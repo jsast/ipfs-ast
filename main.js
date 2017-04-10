@@ -20,7 +20,7 @@ import async from 'async';
 function storeLink({ name, node }) {
   // Process the AST-Node
   // to get its data and links (to other AST-Nodes)
-  const { data, links } = processNode(node);
+  const { data, links } = exportNode(node);
 
   return Promise.all(
     // recursively call storeLink on all links,
@@ -42,7 +42,7 @@ function storeLink({ name, node }) {
   })
 }
 
-function makeProcessor(dataKeys, linkKeys) {
+function makeExporter(dataKeys, linkKeys) {
   return (node) => {
     const links = []
 
@@ -63,80 +63,80 @@ function makeProcessor(dataKeys, linkKeys) {
   }
 }
 
-const processors = {
-  'Program':             makeProcessor(['sourceType'], ['body']),
+const exporters = {
+  'Program':             makeExporter(['sourceType'], ['body']),
   // TODO: Handle `regex?`
-  'Literal':             makeProcessor(['value', 'raw'], []),
-  'ThisExpression':      makeProcessor([], []),
-  'Identifier':   makeProcessor(['name'], []),
-  'Super':   makeProcessor([], []),
-  'Import':   makeProcessor([], []),
-  'ArrayPattern':   makeProcessor([], ['elements']),
-  'RestElement':   makeProcessor([], ['argument']),
-  'AssignmentPattern':   makeProcessor([], ['left', 'right']),
-  'ObjectPattern':   makeProcessor([], ['properties']),
-  'ArrayExpression':   makeProcessor([], ['elements']),
-  'ObjectExpression':   makeProcessor([], ['properties']),
-  'Property':   makeProcessor(['computed', 'kind', 'method', 'shorthand'], ['key', 'value']),
-  'FunctionExpression':   makeProcessor(['generator', 'async', 'expression'], ['id', 'params', 'body']),
-  'ArrowFunctionExpression':   makeProcessor(['generator', 'async', 'expression'], ['id', 'params', 'body']),
-  'ClassExpression':   makeProcessor([], ['id', 'superClass', 'body']),
-  'ClassBody':   makeProcessor([], ['body']),
-  'MethodDefinition':   makeProcessor(['computed', 'kind', 'static'], ['key', 'value']),
-  'TaggedTemplateExpression':   makeProcessor([], ['readonly tag', 'readonly quasi']),
-  'TemplateElement':   makeProcessor(['value', 'tail'], []),
-  'TemplateLiteral':   makeProcessor([], ['quasis', 'expressions']),
-  'MemberExpression':   makeProcessor(['computed'], ['object', 'property']),
-  'MetaProperty':   makeProcessor([], ['meta', 'property']),
-  'CallExpression':   makeProcessor([], ['callee', 'arguments']),
-  'NewExpression':   makeProcessor([], ['callee', 'arguments']),
-  'SpreadElement':   makeProcessor([], ['argument']),
-  'UpdateExpression':   makeProcessor(['operator', 'prefix'], ['argument']),
-  'AwaitExpression':   makeProcessor([], ['argument']),
-  'UnaryExpression':   makeProcessor(['operator', 'prefix'], ['argument']),
-  'BinaryExpression':    makeProcessor(['operator'], ['left', 'right']),
-  'LogicalExpression':    makeProcessor(['operator'], ['left', 'right']),
+  'Literal':             makeExporter(['value', 'raw'], []),
+  'ThisExpression':      makeExporter([], []),
+  'Identifier':   makeExporter(['name'], []),
+  'Super':   makeExporter([], []),
+  'Import':   makeExporter([], []),
+  'ArrayPattern':   makeExporter([], ['elements']),
+  'RestElement':   makeExporter([], ['argument']),
+  'AssignmentPattern':   makeExporter([], ['left', 'right']),
+  'ObjectPattern':   makeExporter([], ['properties']),
+  'ArrayExpression':   makeExporter([], ['elements']),
+  'ObjectExpression':   makeExporter([], ['properties']),
+  'Property':   makeExporter(['computed', 'kind', 'method', 'shorthand'], ['key', 'value']),
+  'FunctionExpression':   makeExporter(['generator', 'async', 'expression'], ['id', 'params', 'body']),
+  'ArrowFunctionExpression':   makeExporter(['generator', 'async', 'expression'], ['id', 'params', 'body']),
+  'ClassExpression':   makeExporter([], ['id', 'superClass', 'body']),
+  'ClassBody':   makeExporter([], ['body']),
+  'MethodDefinition':   makeExporter(['computed', 'kind', 'static'], ['key', 'value']),
+  'TaggedTemplateExpression':   makeExporter([], ['readonly tag', 'readonly quasi']),
+  'TemplateElement':   makeExporter(['value', 'tail'], []),
+  'TemplateLiteral':   makeExporter([], ['quasis', 'expressions']),
+  'MemberExpression':   makeExporter(['computed'], ['object', 'property']),
+  'MetaProperty':   makeExporter([], ['meta', 'property']),
+  'CallExpression':   makeExporter([], ['callee', 'arguments']),
+  'NewExpression':   makeExporter([], ['callee', 'arguments']),
+  'SpreadElement':   makeExporter([], ['argument']),
+  'UpdateExpression':   makeExporter(['operator', 'prefix'], ['argument']),
+  'AwaitExpression':   makeExporter([], ['argument']),
+  'UnaryExpression':   makeExporter(['operator', 'prefix'], ['argument']),
+  'BinaryExpression':    makeExporter(['operator'], ['left', 'right']),
+  'LogicalExpression':    makeExporter(['operator'], ['left', 'right']),
   // TODO: Handle / test optional `alternate?`
-  'ConditionalExpression':   makeProcessor([], ['test', 'consequent', 'alternate']),
-  'YieldExpression':   makeProcessor(['delegate'], ['argument']),
-  'AssignmentExpression':   makeProcessor(['operator'], ['left', 'right']),
-  'SequenceExpression':   makeProcessor([], ['expressions']),
-  'BlockStatement':   makeProcessor([], ['body']),
-  'BreakStatement':   makeProcessor([], ['label']),
-  'ClassDeclaration':   makeProcessor([], ['id', 'superClass', 'body']),
-  'ContinueStatement':   makeProcessor([], ['label']),
-  'DebuggerStatement':   makeProcessor([], []),
-  'DoWhileStatement':   makeProcessor([], ['body', 'test']),
-  'EmptyStatement':   makeProcessor([], []),
-  'ExpressionStatement': makeProcessor([], ['expression']),
-  'ForStatement':   makeProcessor([], ['init', 'test', 'update', 'body']),
-  'ForInStatement':   makeProcessor(['each'], ['left', 'right', 'body']),
-  'ForOfStatement':   makeProcessor([], ['left', 'right', 'body']),
-  'FunctionDeclaration':   makeProcessor(['generator', 'async', 'expression'], ['id', 'params', 'body']),
+  'ConditionalExpression':   makeExporter([], ['test', 'consequent', 'alternate']),
+  'YieldExpression':   makeExporter(['delegate'], ['argument']),
+  'AssignmentExpression':   makeExporter(['operator'], ['left', 'right']),
+  'SequenceExpression':   makeExporter([], ['expressions']),
+  'BlockStatement':   makeExporter([], ['body']),
+  'BreakStatement':   makeExporter([], ['label']),
+  'ClassDeclaration':   makeExporter([], ['id', 'superClass', 'body']),
+  'ContinueStatement':   makeExporter([], ['label']),
+  'DebuggerStatement':   makeExporter([], []),
+  'DoWhileStatement':   makeExporter([], ['body', 'test']),
+  'EmptyStatement':   makeExporter([], []),
+  'ExpressionStatement': makeExporter([], ['expression']),
+  'ForStatement':   makeExporter([], ['init', 'test', 'update', 'body']),
+  'ForInStatement':   makeExporter(['each'], ['left', 'right', 'body']),
+  'ForOfStatement':   makeExporter([], ['left', 'right', 'body']),
+  'FunctionDeclaration':   makeExporter(['generator', 'async', 'expression'], ['id', 'params', 'body']),
   // TODO: Handle / test optional `alternate?`
-  'IfStatement':   makeProcessor([], ['test', 'consequent', 'alternate']),
-  'LabeledStatement':   makeProcessor([], ['label', 'body']),
-  'ReturnStatement':   makeProcessor([], ['argument']),
-  'SwitchStatement':   makeProcessor([], ['discriminant', 'cases']),
-  'SwitchCase':   makeProcessor([], ['test', 'consequent']),
-  'ThrowStatement':   makeProcessor([], ['argument']),
-  'TryStatement':   makeProcessor([], ['block', 'handler', 'finalizer']),
-  'CatchClause':   makeProcessor([], ['param', 'body']),
-  'VariableDeclaration':   makeProcessor(['kind'], ['declarations']),
-  'VariableDeclarator':   makeProcessor([], ['id', 'init']),
-  'WhileStatement':   makeProcessor([], ['test', 'body']),
-  'WithStatement':   makeProcessor([], ['object', 'body']),
+  'IfStatement':   makeExporter([], ['test', 'consequent', 'alternate']),
+  'LabeledStatement':   makeExporter([], ['label', 'body']),
+  'ReturnStatement':   makeExporter([], ['argument']),
+  'SwitchStatement':   makeExporter([], ['discriminant', 'cases']),
+  'SwitchCase':   makeExporter([], ['test', 'consequent']),
+  'ThrowStatement':   makeExporter([], ['argument']),
+  'TryStatement':   makeExporter([], ['block', 'handler', 'finalizer']),
+  'CatchClause':   makeExporter([], ['param', 'body']),
+  'VariableDeclaration':   makeExporter(['kind'], ['declarations']),
+  'VariableDeclarator':   makeExporter([], ['id', 'init']),
+  'WhileStatement':   makeExporter([], ['test', 'body']),
+  'WithStatement':   makeExporter([], ['object', 'body']),
   // TODO: Handle / test optional `imported?`
-  'ImportSpecifier':   makeProcessor([], ['local', 'imported']),
+  'ImportSpecifier':   makeExporter([], ['local', 'imported']),
   // TODO: Handle / test optional `imported?`
-  'ImportDefaultSpecifier':   makeProcessor([], ['local', 'imported']),
+  'ImportDefaultSpecifier':   makeExporter([], ['local', 'imported']),
   // TODO: Handle / test optional `imported?`
-  'ImportNamespaceSpecifier':   makeProcessor([], ['local', 'imported']),
-  'ExportAllDeclaration':   makeProcessor([], ['source']),
-  'ExportDefaultDeclaration':   makeProcessor([], ['declaration']),
-  'ExportNamedDeclaration':   makeProcessor([], ['declaration', 'specifiers', 'source']),
-  'ExportSpecifier':   makeProcessor([], ['exported', 'local']),
-  'ImportDeclaration':   makeProcessor([], ['specifier', 'source']),
+  'ImportNamespaceSpecifier':   makeExporter([], ['local', 'imported']),
+  'ExportAllDeclaration':   makeExporter([], ['source']),
+  'ExportDefaultDeclaration':   makeExporter([], ['declaration']),
+  'ExportNamedDeclaration':   makeExporter([], ['declaration', 'specifiers', 'source']),
+  'ExportSpecifier':   makeExporter([], ['exported', 'local']),
+  'ImportDeclaration':   makeExporter([], ['specifier', 'source']),
 }
 
 // NOTE: This does not return valid DAGNodes!
@@ -144,11 +144,11 @@ const processors = {
 
 var nodes = 0
 
-function processNode(node) {
-  const processor = processors[node.type];
-  if (processor != undefined) {
+function exportNode(node) {
+  const exporter = exporters[node.type];
+  if (exporter != undefined) {
     nodes += 1
-    return processor(node)
+    return exporter(node)
   } else {
     throw 'Unknown node type: ' + node.type;
   }
