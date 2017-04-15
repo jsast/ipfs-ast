@@ -49,5 +49,8 @@ ipfsAST.storeCode("console.log(1 + 1)").then(node => {
 
 ## Visualize
 
+### `viz.rb`
+
+* Start `ipfs daemon`
 * Create the `.dot` file: `ruby viz.rb $hash`
 * Render it to a `.png`: `dot -Tpng output.dot -o output.png`
