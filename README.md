@@ -47,16 +47,7 @@ ipfsAST.storeCode("console.log(1 + 1)").then(node => {
   if the IPFS network is to slow
 * [ ] List all pinned objects + source code
 
-## Export
-
-TODO
-
-## Import
-
-TODO
-
 ## Visualize
 
 * Create the `.dot` file: `ruby viz.rb $hash`
 * Render it to a `.png`: `dot -Tpng output.dot -o output.png`
-
