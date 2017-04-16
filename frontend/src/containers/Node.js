@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Link } from 'react-router';
@@ -6,12 +7,8 @@ import SyntaxHighlighter from 'react-syntax-highlighter';
 import { monokai } from 'react-syntax-highlighter/dist/styles';
 import FileSaver from 'file-saver';
 
-import ipfsAPI from 'ipfs-api';
-const ipfs = ipfsAPI('localhost', '5001', { protocol: 'http' });
-
-import * as ipfsActions from '../actions/ipfsActions';
-
-import { loadCode } from '../../../ipfs-ast/main';
+// TODO: Is this needed for ipfs to work correctly?
+import 'setimmediate';
 
 class Node extends React.Component {
   constructor(props) {
@@ -23,8 +20,12 @@ class Node extends React.Component {
       code: ''
     }
 
-    this.loadNodeIfNecessary(props);
+    this.loadNodeIfNecessary = this.loadNodeIfNecessary.bind(this);
     this.handleExport = this.handleExport.bind(this);
+  }
+
+  componentDidMount() {
+    this.loadNodeIfNecessary(this.props);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -36,31 +37,24 @@ class Node extends React.Component {
     const { hash } = props.params;
 
     if (!node || node.hash != hash) {
-      ipfs.object.get(hash, (err, rawNode) => {
-        if (err) {
-          this.setState({ state: 'Failed' })
-        } else {
-          const node = rawNode.toJSON();
+      console.log(this.context.ipfs.loadCode(hash).then(({ node, code }) => {
+        this.setState({
+          state: 'Loaded',
+          node,
+          code,
+        });
 
-          this.setState({
-            state: 'Loaded',
-            node
-          });
-
-          loadCode(node.multihash).then(code => {
-            this.setState({ code: code });
-          });
-
-          // TODO: Handle error
-        }
-      });
+      }).catch(err => {
+        console.log(err.message);
+        this.setState({ state: 'Failed' })
+      }));
     }
   }
 
   handleExport() {
     const { node: { multihash }, code } = this.state;
 
-    var blob = new Blob([code], {type: "octet/stream"});
+    const blob = new Blob([code], {type: "octet/stream"});
     FileSaver.saveAs(blob, multihash+".js");
   }
 
@@ -117,10 +111,13 @@ function mapStateToProps(state, ownProps) {
 
 function mapDispatchToProps(dispatch) {
   return {
-    actions: bindActionCreators(ipfsActions, dispatch)
+    // actions: bindActionCreators(ipfsActions, dispatch)
   };
 }
 
+Node.contextTypes = {
+  ipfs: PropTypes.object
+};
 
 export default connect(
   mapStateToProps,

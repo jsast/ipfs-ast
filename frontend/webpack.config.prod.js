@@ -13,7 +13,16 @@ const GLOBALS = {
 };
 
 export default {
+  // SEE: https://github.com/ipfs/js-ipfs/blob/master/examples/bundle-webpack/webpack.config.js
+  node: {
+    fs: 'empty',
+    net: 'empty',
+    tls: 'empty'
+  },
   resolve: {
+    alias: {
+      zlib: 'browserify-zlib-next'
+    },
     extensions: ['*', '.js', '.jsx', '.json']
   },
   devtool: 'source-map', // more info:https://webpack.github.io/docs/build-performance.html#sourcemaps and https://webpack.github.io/docs/configuration.html#devtool

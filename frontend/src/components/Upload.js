@@ -1,13 +1,12 @@
 import React from 'react';
 import { browserHistory } from 'react-router';
+import PropTypes from 'prop-types';
 
 import AceEditor from 'react-ace';
 import brace from 'brace';
 
 import 'brace/mode/javascript';
 import 'brace/theme/monokai';
-
-import { storeCode } from '../../../ipfs-ast/main';
 
 class Upload extends React.Component {
   constructor(props) {
@@ -38,7 +37,7 @@ class Upload extends React.Component {
   handleSubmit() {
     const { value } = this.state;
 
-    storeCode(value).then(node => {
+    this.context.ipfs.storeCode(value).then(node => {
       const hash = node.Hash;
       browserHistory.push('/nodes/' + hash);
     });
@@ -69,4 +68,9 @@ class Upload extends React.Component {
   }
 }
 
+Upload.contextTypes = {
+  ipfs: PropTypes.object
+};
+
 export default Upload;
+

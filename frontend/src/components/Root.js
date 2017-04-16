@@ -4,7 +4,11 @@ import { Provider } from 'react-redux';
 import routes from '../routes';
 import { Router } from 'react-router';
 
-export default class Root extends Component {
+class Root extends Component {
+  getChildContext() {
+    return { ipfs: this.props.ipfs }
+  }
+
   render() {
     const { store, history } = this.props;
     return (
@@ -19,3 +23,9 @@ Root.propTypes = {
   store: PropTypes.object.isRequired,
   history: PropTypes.object.isRequired
 };
+
+Root.childContextTypes = {
+  ipfs: PropTypes.object
+};
+
+export default Root;
