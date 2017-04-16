@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { monokai } from 'react-syntax-highlighter/dist/styles';
 import FileSaver from 'file-saver';
+import Graph from 'react-graph-vis';
 
 // TODO: Is this needed for ipfs to work correctly?
 import 'setimmediate';
@@ -17,7 +18,9 @@ class Node extends React.Component {
     this.state = {
       state: 'Not loaded',
       node: null,
-      code: ''
+      code: '',
+      nodes: [],
+      edges: [],
     }
 
     this.loadNodeIfNecessary = this.loadNodeIfNecessary.bind(this);
@@ -37,6 +40,13 @@ class Node extends React.Component {
     const { hash } = props.params;
 
     if (!node || node.hash != hash) {
+
+      this.context.ipfs.loadGraph({ name: 'root', multihash: hash }, 3).then(({nodes, edges}) => {
+        this.setState({ nodes, edges });
+      }).catch((err) => {
+        throw err
+      });
+
       console.log(this.context.ipfs.loadCode(hash).then(({ node, code }) => {
         this.setState({
           state: 'Loaded',
@@ -59,7 +69,24 @@ class Node extends React.Component {
   }
 
   render() {
-    const { node, state, code } = this.state;
+    const { node, state, code, nodes, edges } = this.state;
+    const graph = { nodes, edges };
+
+    const options = {
+      layout: {
+          hierarchical: true
+      },
+      edges: {
+          color: "#000000",
+          smooth: {
+          type: "continuous",
+          forceDirection: "none"
+        }
+      },
+      width: '1000px',
+      autoResize: true
+    };
+
 
     if (node) {
       if (state == "Loaded") {
@@ -84,6 +111,9 @@ class Node extends React.Component {
             </div>
             <div className="node__code">
               <SyntaxHighlighter language="javascript" style={monokai}>{ code }</SyntaxHighlighter>
+            </div>
+            <div className="node__graph">
+              <Graph graph={graph} options={options} />
             </div>
             <button onClick={this.handleExport}>Download</button>
           </div>

@@ -77,8 +77,8 @@ function IpfsAst(ipfs) {
 
       // TODO: Errors in this promise are not passed to the outer promise
       return Promise.all(
-          node.links.map(this.loadLink)
-          ).then(links => {
+        node.links.map(this.loadLink)
+      ).then(links => {
         const data = JSON.parse(node.data);
         const arrays = [];
 
@@ -107,7 +107,41 @@ function IpfsAst(ipfs) {
         throw err;
       });
     });
-  }
+  };
+
+  // Create arrays of nodes and edges for an ipfs object
+  // TODO: Don't use shared variables
+  this.loadGraph = ({ name, multihash }, depth) => {
+    return this._loadGraph([], [], { name, multihash }, depth);
+  };
+
+  // TODO: Add edge labels
+  this._loadGraph = (nodes, edges, { name, multihash }, depth) => {
+    if (depth == 0) {
+      return { nodes, edges };
+    }
+
+    return this.getObject(multihash).then(node_ => {
+      const node = node_.toJSON();
+
+      const element = {
+        id: node.multihash,
+        // label: JSON.stringify(JSON.parse(node.data.toString()).type, null, 2)
+        label: JSON.parse(node.data.toString()).type
+      };
+
+      if (!R.any(R.propEq('id', node.multihash), nodes)) {
+        nodes.push(element);
+      }
+
+      edges.push(...node.links.map(link => ({ from: node.multihash, to: link.multihash, label: link.name })));
+
+      // TODO: Errors in this promise are not passed to the outer promise
+      return Promise.all(
+        node.links.map((link) => this._loadGraph(nodes, edges, link, depth - 1))
+      ).then(() => ({ nodes, edges }))
+    });
+  };
 
   // NOTE: There are some special cases
   // where the values of the linkKeys
