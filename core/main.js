@@ -7,8 +7,8 @@ const async = require('async');
 function IpfsAst(ipfs) {
   this.ipfs = ipfs;
 
-  this.getObject = this.ipfs.object.get;
-  this.putObject = this.ipfs.object.put;
+  this.getObject = (hash) => this.ipfs.object.get(hash, {enc: 'json'});
+  this.putObject = (object) => this.ipfs.object.put(object, {enc: 'json'});
 
   // NOTE: Links w/ different names but the same ref
   // appear only once in the webinterface
@@ -71,6 +71,7 @@ function IpfsAst(ipfs) {
   // and then, after parsing all links,
   // sort them by `index` and keep only `node`
   this.loadLink = ({ name, multihash }) => {
+    console.log('loading link');
     return this.getObject(multihash).then(node_ => {
       const node = node_.toJSON();
 
@@ -252,6 +253,7 @@ function IpfsAst(ipfs) {
   // }
 
   this.loadCode = (hash) => {
+    console.log("loding code");
     return this.loadLink({ name: 'root', multihash: hash }).then(({ data, node }) => {
       const code = escodegen.generate(data);
       return { node, code };
